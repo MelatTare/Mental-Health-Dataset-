@@ -1,0 +1,844 @@
+---
+title: "Appendix D: R Code"
+author: "Melat Tarekegn"
+date: "2025-02-27"
+output: pdf_document
+---
+
+Get working directory and read the data
+```{r}
+getwd()
+data <- read.csv("Mental Health Care.csv", sep=",")
+library(ggplot2)
+library(stringr)
+library(dplyr)
+```
+
+
+
+```{r}
+# Descriptive Statistics 
+nrow(data)
+ncol(data)
+names(data)
+head(data)
+tail(data)
+summary(data)
+colSums(is.na(data)) # Check for missing values
+```
+
+
+Summarize mental health care utilization by Indicator and view the summary 
+```{r}
+Indicatorsummary <- data %>%
+  group_by(Indicator) %>%
+  summarize(
+    mean_utilization = mean(Value, na.rm = TRUE),
+    median_utilization = median(Value, na.rm = TRUE),
+    sd_utilization = sd(Value, na.rm = TRUE))
+print(Indicatorsummary)
+```
+
+
+Visualize Indicator summary as a bar chart. Use actual mean_utilization values (rather than counting occurrences(stat = "identity")).
+```{r}
+ggplot(Indicatorsummary, aes(x = reorder(Indicator, -mean_utilization), y = mean_utilization)) +
+  geom_bar(stat = "identity", fill = "lightblue", color="black") +
+  labs(title = "Mean Mental Health Care Utilization by Indicator",
+       x = "Indicators ",
+       y = "Mean Utilization") +
+  theme_minimal() + theme(legend.position = "none",  # Hide legend if not needed
+                       axis.text.y = element_text(size = 10)) +  # Adjust font size
+  scale_y_continuous(labels = scales::comma) +  # Format y-axis numbers
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20))  # Wrap text
+```
+
+
+Create a box plot to visualize the spread of mental health care utilization across indicators
+```{r}
+ggplot(data, aes(x = Indicator, y = Value)) +
+  geom_boxplot(fill = "lightblue", color = "black") +
+  labs(title = "Distribution of Mental Health Care Utilization by Indicator",
+       x = "Indicator",
+       y = "Utilization") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Rotate x-axis labels
+  scale_y_continuous(labels = scales::comma) +  # Format y-axis numbers
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20))  # Wrap text for readability
+```
+
+
+
+Summarize mental health care utilization by state and view the summary 
+```{r}
+state_summary <- data %>%
+  group_by(State) %>%
+  summarize(
+    mean_utilization = mean(Value, na.rm = TRUE),
+    median_utilization = median(Value, na.rm = TRUE),
+    sd_utilization = sd(Value, na.rm = TRUE))
+print(state_summary)
+```
+
+
+Visualize State summary as a column chart. It also reorders states so that those with the highest mean_utilization appear at the top.Use actual mean_utilization values (rather than counting occurrences(stat = "identity")).
+```{r}
+ggplot(state_summary, aes(x = reorder(State, -mean_utilization), y = mean_utilization)) +
+  geom_bar(stat = "identity", fill = "pink", color="black") +
+  coord_flip() +
+  labs(title = "Mean Mental Health Care Utilization by State",
+       x = "State",
+       y = "Mean Utilization") +
+  theme_minimal()
+```
+
+
+Create a box plot that shows the distribution / spread and variation of mental health care utilization across the different states
+```{r}
+ggplot(data, aes(x = State, y = Value)) +
+  geom_boxplot(fill = "pink", color = "black") +
+  coord_flip() +
+  labs(title = "Distribution of Mental Health Care Utilization by State",
+       x = "State",
+       y = "Utilization Rate") +
+  theme_minimal()
+```
+
+Regression analysis, correlation analysis and hypothesis testing
+```{r}
+# ================= REGRESSION ANALYSIS ================= #
+# Convert categorical state variable to numeric factor for regression
+state_summary$StateNumeric <- as.numeric(as.factor(state_summary$State))
+
+# Perform linear regression
+regression_model1 <- lm(mean_utilization ~ StateNumeric, data = state_summary)
+summary(regression_model1)
+
+# ================= CORRELATION ANALYSIS ================= #
+# Spearman correlation test (since State is categorical)
+correlation_test1 <- cor.test(state_summary$StateNumeric, state_summary$mean_utilization, method = "spearman")
+print(correlation_test1)
+
+# ================= HYPOTHESIS TESTING ================= #
+# Checking normality assumption
+shapiro_test1 <- shapiro.test(state_summary$mean_utilization)  # If p-value < 0.05, data is NOT normal
+print(shapiro_test1)
+
+# If data is NOT normal, use Kruskal-Wallis test instead of ANOVA
+kruskal_test1 <- kruskal.test(mean_utilization ~ as.factor(State), data = state_summary)
+print(kruskal_test1)
+```
+
+
+
+Summarize average utilization by the different groups and view the summary
+```{r}
+group_summary <- data %>%
+  group_by(Group) %>%
+  summarize(mean_utilization = mean(Value, na.rm = TRUE),
+            median_utilization = median(Value, na.rm = TRUE),
+            sd_utilization = sd(Value, na.rm = TRUE))
+print(group_summary)
+```
+
+
+Visualize the mental health service utlization of the different groups
+```{r}
+ggplot(group_summary, aes(x = reorder(Group, -mean_utilization), y = mean_utilization, fill = Group)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Flip for better readability
+  labs(title = "Mean Mental Health Care Utilization by Group",
+       x = "Group",
+       y = "Mean Utilization") +
+  theme_minimal() +
+  theme(legend.position = "none",  # Hide legend if not needed
+        axis.text.y = element_text(size = 10)) +  # Adjust font size
+  scale_y_continuous(labels = scales::comma) +  # Format y-axis numbers
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20))  # Wrap text
+
+```
+
+
+Create a box plot to see the distribution of utilization across different groups
+```{r}
+ggplot(data, aes(x = Group, y = Value, fill = Group)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Mental Health Care Utilization by Group",
+       x = "Groups",
+       y = "Utilization Rate") +
+  theme_minimal() +
+  theme(legend.position = "none",  # Hide legend if not needed
+        axis.text.y = element_text(size = 10)) +  # Adjust font size
+  scale_y_continuous(labels = scales::comma) +  # Format y-axis numbers
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20) #wrap the text
+                   ) + coord_flip()  # Flip for readability
+```
+
+Hypothesis testing for data item group
+```{r}
+# Checking normality assumption
+shapiro_test2 <- shapiro.test(group_summary$mean_utilization)  # If p-value < 0.05, data is NOT normal
+print(shapiro_test2)
+
+# If data is NOT normal, use Kruskal-Wallis test instead of ANOVA
+kruskal_test2 <- kruskal.test(mean_utilization ~ as.factor(Group), data = group_summary)
+print(kruskal_test2)
+```
+
+Summarize average utilization by the different subgroups and view the summary
+```{r}
+subgroup_summary <- data %>%
+  group_by(Subgroup) %>%
+  summarize(mean_utilization = mean(Value, na.rm = TRUE),
+            median_utilization = median(Value, na.rm = TRUE),
+            sd_utilization = sd(Value, na.rm = TRUE))
+print(subgroup_summary)
+```
+
+
+Calculate mean utilization for each group and subgroup and sort by group
+```{r}
+groupsummary <- data %>%
+  group_by(Group, Subgroup) %>%
+  summarize(mean_utilization = mean(Value, na.rm = TRUE)) %>%
+  arrange(Group, desc(mean_utilization))  # Sort by Group first, then by utilization
+print(groupsummary)
+```
+
+
+Remove the state summary since they are examined separately
+```{r}
+top_subgroups <- groupsummary %>%
+  filter(Group != "By State") %>%  # Remove states since they are examined alone
+  group_by(Group) %>%
+  top_n(10, mean_utilization)  # Keep only the top 10 subgroups per Group 
+print(top_subgroups)
+```
+
+
+Select color for all the subgroups to be able to filter out the specific subgroups and plot them.
+```{r}
+subgroup_colors <- c(
+  "18 - 29 years" = "#66c2a5", "30 - 39 years" ="orange","40 - 49 years"="#a6d854", "50 - 59 years"="brown", "60 - 69 years"="lightblue", "70 - 79 years"="red", "80 years and above" ="#e5c494",
+  "Male" = "blue", "Female" = "pink", "With disability" ="green", "Without disability"="orange",
+  "Some college/Associate's degree"="darkorange", "Bachelor's degree or higher"="orange", "Less than a high school diploma"="#ffd92f", "High school diploma or GED"="#e5c494",
+  "Cis-gender female"="pink", "Cis-gender male"="lightblue", "Transgender"="green","Experienced symptoms of anxiety/depression in past 4 weeks"="red", "Did not experience symptoms of anxiety/depression in the past 4 weeks"="green", 
+  "Non-Hispanic, other races and multiple races"="brown", "Non-Hispanic White, single race"="#a6d854","Hispanic or Latino"="orange", "Non-Hispanic Black, single race"= "black", "Non-Hispanic Asian, single race"="gray",
+  "Bisexual" = "#a6d854","Gay or lesbian" = "#ffd92f","Straight" = "#e5c494")
+```
+
+
+Display the different subgroups arranged by the groups. 
+```{r}
+ggplot(top_subgroups, aes(x = reorder(Subgroup, mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y", labeller = labeller(Group = function(x) stringr::str_wrap(x, width = 15))) +  
+  theme_minimal() +
+  labs(
+    title = "The Mean Utilization of The Different Groups", 
+    x = "Subgroups", 
+    y = "Mean Utilization"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 4.5),  
+    axis.text.x = element_text(size = 8, vjust = 1),  
+    strip.text = element_text(size = 7, margin = margin(b = 5)),  
+    legend.position = "none"  
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual(values = subgroup_colors) +  
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 15)) +  
+  coord_flip() 
+```
+
+
+Filter for specific subgroups by age and visualize it.
+```{r}
+filtered_data <- top_subgroups %>%
+  filter(Subgroup %in% c("18 - 29 years", "30 - 39 years", "40 - 49 years", "50 - 59 years", "60 - 69 years", "70 - 79 years", "80 years and above"))
+
+ggplot(filtered_data, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Arouped by Age", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+Age group analysis and the different indicators and the visualization of the age group and indicators and their average utlizations. 
+```{r}
+# Compute the average values for each age group and indicator
+age_data <- data %>%
+  filter(Group == "By Age") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot (no regression since Subgroup is categorical)
+ggplot(age_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +    
+  labs(
+    title = "Average Mental Health Care Utilization by Age Group",
+    x = "Age Group",
+    y = "Average Value",
+    color = "Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x labels for readability
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  ) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))  # Wrap legend text
+# Linear Regression Model
+regression_model_age <- lm(Average_Value ~ Subgroup, data = age_data)
+summary(regression_model_age)
+# Correlation analysis
+cor_test <- cor.test(age_data$Average_Value, as.numeric(as.factor(age_data$Subgroup)), method = "spearman")
+print(cor_test)
+# Checking normality assumption
+shapiro_test3 <- shapiro.test(age_data$Average_Value)  # If p-value < 0.05, data is NOT normal
+print(shapiro_test3)
+# Kruskal-Wallis Test (since `Subgroup` is categorical)
+kruskal_test3 <- kruskal.test(Average_Value ~ Subgroup, data = age_data)
+print(kruskal_test3)
+```
+
+
+
+Filter for specific subgroups by sex and visualize it.
+```{r}
+filtered_data2 <- top_subgroups %>%
+  filter(Subgroup %in% c("Male", "Female"))
+
+ggplot(filtered_data2, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Sex", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+
+Sex analysis and the different indicators average utilization and its visualization.
+```{r}
+sex_data <- data %>%
+  filter(Group == "By Sex") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot
+ggplot(sex_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization By Sex",
+    x = "Sex",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme(plot.title = element_text(size = 12, hjust = 0.5),
+        axis.text.x = element_text(angle = 0, hjust = .5, size = 8),
+        legend.text = element_text(size = 8)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 15)) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))
+
+# Linear Regression Model
+sex_data$Subgroup <- as.factor(sex_data$Subgroup)
+sex_model <- lm(Average_Value ~ Subgroup, data = sex_data)
+summary(sex_model)
+
+# Correlation analysis
+cor_test2 <- cor.test(sex_data$Average_Value, as.numeric(as.factor(sex_data$Subgroup)), method = "spearman")
+print(cor_test2)
+
+#hypothesis testing
+if (length(unique(sex_data$Subgroup)) == 2) {
+  t_test_result <- t.test(Average_Value ~ Subgroup, data = sex_data)
+  print(t_test_result)
+} else {
+  anova_result <- aov(Average_Value ~ Subgroup, data = sex_data)
+  print(summary(anova_result))
+}
+```
+
+
+Filter for specific subgroups by disability and visualize only the filtered subgroups. 
+```{r}
+filtered_data3 <- top_subgroups %>%
+  filter(Subgroup %in% c("With disability", "Without disability"))
+
+ggplot(filtered_data3, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Disability", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+
+Disability analysis and the different indicators average utilization and their visualization.
+```{r}
+# Filter and aggregate the data
+disability_data <- data %>%
+  filter(Group == "By Disability status") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot (no regression since `Subgroup` is categorical)
+ggplot(disability_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization by Disability Status",
+    x = "Disability Status",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = .5),  # Rotate x labels
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  ) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))  # Wrap legend text
+
+# Linear Regression Model
+disability_data$Subgroup <- as.factor(disability_data$Subgroup)
+disability_model <- lm(Average_Value ~ Subgroup, data = disability_data)
+summary(disability_model)
+
+# Correlation analysis
+cor_test3 <- cor.test(disability_data$Average_Value, as.numeric(as.factor(disability_data$Subgroup)), method = "spearman")
+print(cor_test3)
+
+# T-test if only 2 groups exist, otherwise ANOVA
+if (length(unique(disability_data$Subgroup)) == 2) {
+  t_test_result1 <- t.test(Average_Value ~ Subgroup, data = disability_data)
+  print(t_test_result1)
+} else {
+  anova_result1 <- aov(Average_Value ~ Subgroup, data = disability_data)
+  print(summary(anova_result1))
+}
+```
+
+
+Filter for specific subgroups by education and visualize it.
+```{r}
+filtered_data4 <- top_subgroups %>%
+  filter(Subgroup %in% c("Some college/Associate's degree", "Bachelor's degree or higher", "Less than a high school diploma", "High school diploma or GED"))
+
+ggplot(filtered_data4, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Education", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +  # Wrap long labels
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+Education analysis and the different indicators average utilization and their visualization.
+```{r}
+education_data <- data %>%
+  filter(Group == "By Education") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot
+ggplot(education_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization by Education",
+    x = "Education Level",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  )  +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.text = element_text(size = 8)) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))
+
+# Correlation analysis
+cor_test4 <- cor.test(education_data$Average_Value, as.numeric(as.factor(education_data$Subgroup)), method = "spearman")
+print(cor_test4)
+
+# Regression and normality tests
+education_data$Subgroup <- as.factor(education_data$Subgroup)
+education_model <- lm(Average_Value ~ Subgroup, data = education_data)
+summary(education_model)
+
+if (nrow(education_data) < 5000) {
+  shapiro.test(education_data$Average_Value)
+} else {
+  ks.test(education_data$Average_Value, "pnorm", mean(education_data$Average_Value), sd(education_data$Average_Value))
+}
+
+kruskal_test4 <- kruskal.test(Average_Value ~ Subgroup, data = education_data)
+print(kruskal_test4)
+```
+
+
+
+Filter for specific subgroups by gender identity and visualize it.
+```{r}
+filtered_data5 <- top_subgroups %>%
+  filter(Subgroup %in% c("Cis-gender female", "Cis-gender male", "Transgender"))
+
+ggplot(filtered_data5, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Gender Identity", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+Gender identity analysis and the different indicators average utilization and their visualization.
+```{r}
+gender_data <- data %>%
+  filter(Group == "By Gender identity") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot
+ggplot(gender_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization by Gender Identity",
+    x = "Gender Identity",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.text = element_text(size = 8)) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))
+# regression model
+gender_data$Subgroup <- as.factor(gender_data$Subgroup)
+gender_model <- lm(Average_Value ~ Subgroup, data = gender_data)
+summary(gender_model)
+# Correlation analysis
+cor_test5 <- cor.test(gender_data$Average_Value, as.numeric(as.factor(gender_data$Subgroup)), method = "spearman")
+print(cor_test5)
+# hypothesis testing 
+if (nrow(gender_data) < 5000) {
+  shapiro.test(gender_data$Average_Value)
+} else {
+  ks.test(gender_data$Average_Value, "pnorm", mean(gender_data$Average_Value), sd(gender_data$Average_Value))
+}
+
+kruskal_test5 <- kruskal.test(Average_Value ~ Subgroup, data = gender_data)
+print(kruskal_test5)
+```
+
+
+Filter for specific subgroups by race/ ethinicity and visualize it.
+```{r}
+filtered_data6 <- top_subgroups %>%
+  filter(Subgroup %in% c("Non-Hispanic, other races and multiple races", "Non-Hispanic White, single race", "Hispanic or Latino", "Non-Hispanic Black, single race", "Non-Hispanic Asian, single race"))
+
+ggplot(filtered_data6, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Race/ Hispanic Ethnicity", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +  # Wrap long labels
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+
+```{r}
+# Compute the average values for each age group and indicator
+# Filter and aggregate the data
+race_data <- data %>%
+  filter(Group == "By Race/Hispanic ethnicity") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+# Scatter plot (no regression since Subgroup is categorical)
+ggplot(race_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  labs(
+    title = "Average Mental Health Care Utilization by Race/ Ethnicity",
+    x = "Race/Hispanic ethnicity",
+    y = "Average Value",
+    color = "Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x labels for readability
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  ) +
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))  # Wrap legend text
+
+# Linear Regression Model
+regression_model_race <- lm(Average_Value ~ Subgroup, data = race_data)
+summary(regression_model_race)
+
+# Correlation analysis
+cor_test6 <- cor.test(race_data$Average_Value, as.numeric(as.factor(race_data$Subgroup)), method = "spearman")
+print(cor_test6)
+# Checking normality assumption
+shapiro_test4 <- shapiro.test(race_data$Average_Value)  # If p-value < 0.05, data is NOT normal
+print(shapiro_test4)
+# Kruskal-Wallis Test (since `Subgroup` is categorical)
+kruskal_test6 <- kruskal.test(Average_Value ~ Subgroup, data = race_data)
+print(kruskal_test6)
+```
+
+
+Filter for specific subgroups by sexual identity  and visualize it.
+```{r}
+filtered_data7 <- top_subgroups %>%
+  filter(Subgroup %in% c("Gay or lesbian", "Straight", "Bisexual"))
+
+ggplot(filtered_data7, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+  geom_col() +
+  facet_wrap(~ Group, scales = "free_y") +  
+  theme_minimal() +
+  labs(title = "Mean Utilization for Subgroups Grouped by Sexual Identity", 
+       x = "Subgroup", 
+       y = "Mean Utilization") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  scale_fill_manual(values = subgroup_colors)  # Keep custom colors
+```
+
+Sexual orientation analysis and the different indicators average utilization and their visualization.
+```{r}
+# Grouping data by Sexual orientation and Indicator, then calculating mean value
+orientation_data <- data %>%
+  filter(Group == "By Sexual orientation") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot (no regression since Subgroup is categorical)
+ggplot(orientation_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization By Sexual Orientation",
+    x = "Sexual Orientation",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  ) +
+  theme(
+    plot.title = element_text(size = 12, hjust = 0.5),  # Adjust title size and center it
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),  # Rotate x labels for clarity
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  ) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 15)) +  # Wrap x-axis labels
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))  # Wrap legend text
+
+# Convert Subgroup to Factor
+orientation_data$Subgroup <- as.factor(orientation_data$Subgroup)
+
+# Linear Regression Model
+regression_model_orientation <- lm(Average_Value ~ Subgroup, data = orientation_data)
+summary(regression_model_orientation)
+
+# Correlation analysis
+cor_test7 <- cor.test(orientation_data$Average_Value, as.numeric(as.factor(orientation_data$Subgroup)), method = "spearman")
+print(cor_test7)
+
+# Statistical Tests for Normality and Group Differences
+shapiro_result <- shapiro.test(orientation_data$Average_Value)
+print(shapiro_result)  # Print test results
+
+if (shapiro_result$p.value < 0.05) {
+  # If data is not normally distributed, use Kruskal-Wallis
+  kruskal_result <- kruskal.test(Average_Value ~ Subgroup, data = orientation_data)
+  print(kruskal_result)
+} else {
+  # If data is normal, ANOVA could be used (if needed)
+  anova_result2 <- aov(Average_Value ~ Subgroup, data = orientation_data)
+  print(summary(anova_result2))
+}
+```
+
+
+
+Filter for specific subgroups by presence of symptoms  and visualize it.
+```{r}
+filtered_data8 <- top_subgroups %>%
+    filter(Subgroup %in% c("Experienced symptoms of anxiety/depression in past 4 weeks", 
+                           "Did not experience symptoms of anxiety/depression in the past 4 weeks"))
+  
+  ggplot(filtered_data8, aes(x = reorder(Subgroup, -mean_utilization), y = mean_utilization, fill = Subgroup)) +
+    geom_col() +
+    facet_wrap(~ Group, scales = "free_y") +  
+    theme_minimal() +
+    labs(title = "Mean Utilization for Subgroups Grouped by Presence of Symptoms \n of Anxiety/Depression", 
+         x = "Subgroup", 
+         y = "Mean Utilization") +
+    theme(
+      axis.text.x = element_text(angle = 30, hjust = 1, size = 10),  # Slight rotation for readability
+      legend.text = element_text(size = 9),  # Adjust legend text size
+      legend.key.size = unit(0.8, "cm"),  # Reduce legend key size
+      legend.spacing.y = unit(0.5, "cm")  # Reduce vertical spacing between legend items
+    ) +
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +  # Wrap x-axis text
+    scale_fill_manual(values = subgroup_colors, 
+                      labels = function(x) str_wrap(x, width = 25)) +  # Wrap legend text
+    guides(fill = guide_legend(ncol = 1))  # Arrange legend items in a single column
+```
+
+
+Sympton analysis and the different indicator average utilization and their visualization.
+```{r}
+# Filter and aggregate the data
+symptom_data <- data %>%
+  filter(Group == "By Presence of Symptoms of Anxiety/Depression") %>%
+  group_by(Subgroup, Indicator) %>%
+  summarise(Average_Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+# Scatter plot (no regression since `Subgroup` is categorical)
+ggplot(symptom_data, aes(x = Subgroup, y = Average_Value, color = Indicator)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2)) +  
+  theme_minimal() +
+  labs(
+    title = "Mental Health Care Utilization by Presence of Symptoms of Anxiety/Depression",
+    x = "Presence of Symptoms of Anxiety/Depression",
+    y = "Average Utilization Value",
+    color = "Mental Health Indicator"
+  ) +  geom_smooth(method = "lm", se = FALSE, aes(group = Indicator), linetype = "dashed") +  # Add trendlines
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = .5),  # Rotate x labels
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  ) + scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +  # Wrap x-axis text
+  scale_color_discrete(labels = function(x) stringr::str_wrap(x, width = 20))  # Wrap legend text
+
+# Linear Regression Model
+symptom_data$Subgroup <- as.factor(symptom_data$Subgroup)
+symptom_model <- lm(Average_Value ~ Subgroup, data = symptom_data)
+summary(symptom_model)
+
+# Correlation analysis
+cor_test8 <- cor.test(symptom_data$Average_Value, as.numeric(as.factor(symptom_data$Subgroup)), method = "spearman")
+print(cor_test8)
+
+# T-test if only 2 groups exist, otherwise ANOVA
+if (length(unique(symptom_data$Subgroup)) == 2) {
+  t_test_result2 <- t.test(Average_Value ~ Subgroup, data = symptom_data)
+  print(t_test_result2)
+} else {
+  anova_result3 <- aov(Average_Value ~ Subgroup, data = symptom_data)
+  print(summary(anova_result3))
+}
+```
+
+
+Summarize average utilization throughout the different phases and view the summary.
+```{r}
+phase_summary <- data %>%
+  group_by(Phase) %>%
+  summarize(mean_utilization = mean(Value, na.rm = TRUE),
+            median_utilization = median(Value, na.rm = TRUE),
+            sd_utilization = sd(Value, na.rm = TRUE))
+print(phase_summary)
+```
+
+
+
+Create a Bar plot to compare the mean utilization across the different phases.
+```{r}
+ggplot(phase_summary, aes(x = Phase, y = mean_utilization, fill = Phase)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Average Mental Health Care Utilization by Phase",
+       x = "Phase",
+       y = "Mean Utilization") +
+  theme_minimal() + theme(axis.text.x = element_text(size = 7.5)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 10))  # Wrap labels
+```
+
+
+Create a line plot to showing trend of utilization throught the phases.
+```{r}
+ggplot(phase_summary, aes(x = as.factor(Phase), y = mean_utilization, group = 1)) +
+  geom_line(color = "black", size = 1) + 
+  geom_smooth(method = "lm",se = FALSE, color = "blue") +
+  geom_point(size = 3, color = "red") +
+  labs(title = "Trend of Mental Health Care Utilization Across Phases",
+       x = "Phase",
+       y = "Mean Utilization") +
+  theme_minimal() +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 10))  # Wrap labels
+```
+
+
+Create a box plot to show full distribution of data points in each phase.
+```{r}
+ggplot(data, aes(x = as.factor(Phase), y = Value, fill = Phase)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Mental Health Care Utilization by Phase",
+       x = "Phase",
+       y = "Utilization Rate") +
+  theme_minimal() + theme(axis.text.x = element_text(size = 7.5)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 10))  # Wrap labels
+```
+
+
+
+```{r}
+# ================== REGRESSION ANALYSIS ================== #
+# Linear Regression: Predicting mean_utilization using Phase
+regression_model2 <- lm(mean_utilization ~ as.numeric(Phase), data = phase_summary)
+regression_summary <- summary(regression_model2)
+print(regression_summary)
+
+# ================== CORRELATION ANALYSIS ================== #
+# Spearman correlation since Phase is categorical (ordinal)
+correlation_test2 <- cor.test(as.numeric(phase_summary$Phase), phase_summary$mean_utilization, method = "spearman")
+print(correlation_test2)
+
+# ================== HYPOTHESIS TESTING ================== #
+# Normality test (Shapiro-Wilk)
+shapiro_test5 <- shapiro.test(phase_summary$mean_utilization)  # If p < 0.05, data is NOT normal
+print(shapiro_test5)
+
+anova_test2 <- aov(mean_utilization ~ as.factor(Phase), data = phase_summary)
+summary(anova_test2)
+```
+
+Statistical Analysis of Data
+
+Indicator Summary - The survey data reveals that 25.8% of adults reported utilizing mental health resources in the past four weeks, with 22.3% taking prescription medication, 11.2% needing but not receiving counseling/therapy, and 10.5% receiving counseling/therapy. Both the bar graph and box plot illustrate that individuals using prescription medication generally have higher utilization rates. The box plot also shows greater variability in utilization for prescription medication users compared to those seeking counseling. Additionally, the presence of outliers suggests that some individuals require significantly more mental health care than others. The bar graph further indicates that those who both took prescription medication and received counseling/therapy had the highest mean utilization, followed by those who only took prescription medication, then those who needed but didn't receive counseling/therapy, and lastly those who only received counseling/therapy.
+
+State Summary- Both the bar and error plot displays the average mental health care utilization across different states but doesn't establish a relationship between state and utilization. This suggests that further research is needed to explore potential factors influencing mental health care utilization, such as geographic location, climate, religion, or political beliefs. Statistical analysis confirms that state is not a significant predictor of mental health care utilization. This is supported by the regression analysis (p = 0.288) and Spearman's correlation (rho = 0.099, p = 0.482). The Shapiro-Wilk test (p = 0.04398) indicates that the mean utilization is not normally distributed, therefore a Kruskal-Wallis test (p = 0.4737) was performed. These findings suggest that the variable state is not a strong factor in predicting mental health care utilization.
+
+Group Summary - The column plot visualizes that sexual orientation has the highest mean utilization among the different demographics, followed by gender identity, disability status, and the presence of symptoms of anxiety and depression. The Shapiro-Wilk test yielded a p-value of 0.02361, which is less than 0.05, indicating that the data is not normally distributed. Due to the non-normal distribution of the data, the nonparametric Kruskal-Wallis test was used instead of ANOVA, resulting in a p-value of 0.4373. This implies that there is no significant difference in mental health utilization across the different groups.
+The data also reveals that the variable national estimate displays a central tendency of utilization at a moderate rate with relatively lower variability. However, analysis By State shows high variability, suggesting significant differences in utilization rates among states. Further analysis By Sexual Orientation shows a wider spread, implying that different sexual orientation groups experience varied mental health care utilization. By Sex has a narrower spread compared to other groups, indicating more consistent utilization across male and female groups. By Race/Hispanic Ethnicity, data shows moderate variation in utilization, suggesting that some racial/ethnic groups have different access or utilization rates. Additionally, data By Presence of Anxiety/Depression Symptoms shows higher utilization, as expected, with a broad spread. By Gender Identity, data has a large spread, indicating diverse utilization patterns among different gender identities. By Education, a moderate spread suggests differences in mental health care access based on education level. By disability status, data shows higher utilization rates, possibly indicating greater mental health needs among individuals with disabilities. Lastly, data By Age shows variation, likely reflecting differences in mental health care needs and access across age groups.
+Overall, groups like sexual orientation, gender identity, and state have larger variability, suggesting disparities in mental health care utilization. Additionally, the presence of symptoms of anxiety or depression is associated with higher utilization. People with disabilities also show higher utilization rates, likely due to greater healthcare needs. Finally, state-level differences show a large variability across states, suggesting regional differences in access or availability of mental health care.
+
+Age Summary- The data analysis reveals that mental health utilization decreases with age. This is supported by the Spearman's rank correlation, which shows a significant negative relationship between age and mental health utilization (rho = -0.4731, p = 0.011). This means that as age increases, mental health utilization significantly decreases. However, the regression analysis modeling this relationship was not statistically significant (p = 0.3734), and only explained 24.59% of the variance (R-squared value). Additionally, the Kruskal-Wallis test showed no significant difference in mental health utilization among different age groups (p = 0.38). While the Spearman's correlation suggests a significant negative trend between age and mental health utilization, the overall statistical analysis indicates that this trend is not strong enough to be considered statistically significant.
+
+Sex Summary- 
+The data analysis reveals that females tend to utilize mental health services more than males. This observation is supported by the visual representation of the data in the plots. However, the statistical tests conducted do not provide strong evidence for a significant difference in mental health utilization between sexes.The regression analysis indicates that males have a lower average mental health utilization compared to females, but this difference is not statistically significant (p = 0.180). Additionally, the model only explains 27.77% of the variance in the data, suggesting that sex is not a strong predictor of mental health utilization. The Spearman correlation shows a moderate negative correlation (rho = -0.4364), indicating that males tend to have lower utilization. However, this relationship is not statistically significant (p = 0.2797). The t-test further confirms the lack of a statistically significant difference in mental health utilization between males and females (p = 0.192). The wide confidence interval associated with the t-test suggests uncertainty in the estimated difference and highlights the variability in the data. Overall, the results suggest that while there may be a trend towards higher mental health utilization in females, sex is not a key predictor of mental health utilization.
+
+Disability Summary- 
+The results of the statistical analysis, including regression analysis, Spearman's rank correlation, and t-test hypothesis testing, all indicate that individuals with disabilities have a significantly higher utilization of mental health services compared to those without disabilities. The regression analysis demonstrates that disability status accounts for 50.53% of the variance in mental health utilization, and the difference between the two groups is statistically significant (p = 0.048). The Spearman's rank correlation further supports this finding, revealing a strong negative correlation between disability status and mental health utilization (rho = -0.7638, p = 0.0274). While the t-test hypothesis testing yielded a p-value slightly above 0.05 (p = 0.06196), the trend still suggests a meaningful difference in mental health utilization between individuals with and without disabilities. Although the confidence interval includes 0, indicating a possibility of no effect, the effect size is large, suggesting a substantial difference between the two groups. These findings are also visually supported by the plots, which illustrate a higher utilization of mental health services among individuals with disabilities.
+
+Education Summary - The bar graph illustrates that individuals with some college or an associate's degree utilized mental health services the most, followed by those with a bachelor's degree or higher.  Those with less than a high school diploma were next, with those with a high school diploma or GED using mental health services the least. Statistical analysis emphasizes that there may not be a relationship between education level and mental health service utilization, as the results appear random or influenced by an unknown factor. The p-value of 0.6874 and Spearman's rho of 0.1091 indicate that education level does not have a strong or significant correlation with mental health utilization. Additionally, it is not a good predictor of mental health utilization, and there are no significant differences between the education levels. With an R square of 0.0789, only 7.89% of the variance is explained. The p-value of 0.7951 is also not significant. The Shapiro test, with a p-value of 0.1331, confirms that the data follows a normal distribution, as the p-value is greater than 0.05.  The Kruskal-Wallis hypothesis test, with a p-value of 0.5011 (much greater than 0.05), also confirms that there is no significant difference in mental health utilization by education level.
+
+Gender Identity Summary - The bar plot and statistical analysis show that gender identity significantly impacts mental health utilization. Transgender individuals have the highest utilization, followed by cis-gender females, and then cis-gender males. The data follows a normal distribution (Shapiro-Wilk normality test, W = 0.9272, p = 0.3513). The Kruskal-Wallis test (p-value = 0.0183) confirms a statistically significant difference in mental health utilization between gender groups. Spearman's rank correlation analysis indicates a moderate and significant correlation between gender and mental health care utilization (Spearman’s rho = 0.5913, p-value = 0.0429). The strong model (R² = 0.7842) indicates that 78.42% of the variance is explained by gender identity. Transgender individuals have significantly higher utilization than cis-gender females, but there is no significant difference in utilization between cis-gender males and females.
+
+Race Summary - The bar plot examining average mental health service utilization by race and ethnicity reveals that "Non-Hispanic, other races and multiple race" individuals have the highest utilization. This is followed by "Non-Hispanic White, single race" individuals, then Hispanic, "Non-Hispanic Black, single race", and lastly "Non-Hispanic Asian, single race" individuals. A scatter plot provides a more detailed breakdown by specific indicators. Statistical analysis indicates significant differences in mental health care utilization across racial and ethnic groups. Specifically, the "Non-Hispanic, other races and multiple race" group exhibits significantly higher utilization compared to the "Non-Hispanic Asian, single race" group. However, the overall regression model only explains a low amount of variance in utilization (38.52%), as shown by the R-squared value of 0.3852. This suggests that race alone is not a strong predictor of mental health care utilization. While the Spearman’s rho = 0.4599 suggests a moderate positive correlation between race and utilization, and this correlation is statistically significant (p-value = 0.0414), the Kruskal-Wallis test (a non-parametric alternative to ANOVA) indicates that race does not have a significant impact on mental health utilization (Chi-squared = 7.8143, df = 4, p = 0.0986). This is further supported by the normality test (p > 0.05), which shows that the data follows a normal distribution.
+
+Sexual Orientation Summary - The data analysis reveals that sexual orientation is a significant factor in mental health service utilization. Bisexual individuals have the highest average utilization, followed by gay or lesbian individuals, and then straight individuals. This trend is further supported by a scatter plot that breaks down utilization by specific indicators and a statistical summary that shows a significant difference in utilization across sexual orientation groups, with the "Straight" group having significantly lower utilization compared to the "Bisexual" group. The overall model, with an R-squared value of 0.538, explains a moderate amount of variance in utilization. The normality of the data, as indicated by a p-value of 0.0308, supports the validity of the ANOVA and linear regression results.
+
+Presence of Symptoms - The statistical analysis revealed that individuals who reported experiencing symptoms of anxiety or depression had a significantly higher average utilization of mental health care services compared to those who did not. This result is statistically significant (* indicates p < 0.05). The R² value of 0.6575 indicates that approximately 65.75% of the variance in Average Value can be explained by the presence of symptoms. The F-statistic (11.52, p = 0.0146) confirms the overall significance of the model. The Spearman correlation (rho = 0.8729, p = 0.004659) demonstrates a strong positive correlation between the presence of symptoms and average utilization value, suggesting a strong association even in cases where normality assumptions are violated. Additionally, the Welch two-sample t-test (p = 0.01981) further supports the existence of a significant difference between the two groups. The plots, regression analysis, correlation, and t-test all consistently confirm a significant positive relationship between mental health symptoms and the average utilization of mental health services.
+
+Phase Summary - The results show a statistically significant positive correlation between phase and mean utilization, with mental health care utilization increasing as the phase increases. This trend is supported by the line plot with a positive regression line and the bar plot, both indicating that average utilization increases with phase. The regression model explains 83.5% of the variance in mental health utilization, with an adjusted R² of 0.78, showing that the model still explains 78% of the variance when adjusted for predictors. The overall model is statistically significant (F-statistic = 15.19, p = 0.02998). Spearman's rank correlation (p-value = 0.01667) further confirms the significant positive correlation between phase and mean utilization. The Shapiro-Wilk Normality Test (p-value = 0.569135) confirms data normality, but the subsequent ANOVA did not produce a p-value.
